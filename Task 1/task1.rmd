@@ -1,0 +1,164 @@
+---
+title: 'Biostatistics Task 1'
+author: 'Danyu Zhang & Daniel Alonso'
+date: 'A beaUtiful day 27th, 2021'
+output: 'pdf_document'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+collapse = TRUE,
+comment = '#>',
+fig.path = './figures/'
+)
+knitr::knit_engines$set(julia = JuliaCall::eng_juliacall)
+options(JULIA_HOME = '/home/dreth/julia/bin')
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+library(coin)
+library(RVAideMemoire)
+library(vcd)
+library(dplyr)
+library(mosaic)
+```
+
+# Exercise 1
+
+## (i)
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+oysters <- c('none', 'low', 'intermediate', 'high')
+mean_density <- c(34.81, 33.13, 28.33, 15)
+data1 <- data.frame(oysters=factor(oysters),density=mean_density)
+
+mod1 = lm(density ~ oysters, data = data1)
+anova(mod1)
+    
+pairwise.t.test(data1$density, data1$oysters, p.adj='bonferroni')
+```
+
+### Low density
+
+
+
+### Intermediate density
+
+### High density
+
+## (ii) 
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+mod2 = aov(density ~ oysters, data = data1)
+TukeyHSD(mod2)
+```
+
+# Exercise 2
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+groupA <- c(324,275,349,604,566,810,340,295,357,580,344,655,380,503,314)
+groupB <- c(558,108,291,863,303,640,358,503,646,689,250,540,630,190)
+groups_d <- factor(c(rep('A',length(groupA)), rep('B', length(groupB))))
+values <- c(groupA, groupB)
+groups <- data.frame(group=groups_d, ASO=values)
+```
+
+Performing a Shapiro-Wilk normality test tells us that the Group A likely is not normally distributed.
+
+\small
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+shapiro.test(groupA)
+shapiro.test(groupB)
+```
+
+\normalsize
+
+## Standard Procedure
+
+We don't reject the null hypothesis, therefore we can say there's no significant difference between the population median of each group.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+wilcox.test(ASO ~ group, data=groups)
+```
+
+## Resampling Method: Permutation Test
+
+As with the standard procedure, we can say the population medians of both groups are not different.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+independence_test(ASO ~ group, data=groups, distribution=approximate(nresample=10000))
+```
+
+# Exercise 3
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+treatment <- c(rep('conventional',23), rep('alternative',24))
+result <- c(rep('relapse',2),rep('no relapse',21), rep('relapse',8), rep('no relapse',16))
+backpain <- data.frame(treatment=treatment, result=result)
+backpain_tally <- tally(~treatment+result, data=backpain)
+```
+
+## Standard Method
+
+We don't reject the null hypothesis, therefore there's no significant effect on relapse when treating using conventional methods versus alternative methods.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+chisq.test(backpain_tally)
+```
+
+## Resampling method
+
+The resampling method confirms our results with the standard method. There's no significant differences.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+chisq.test(backpain_tally, simulate.p.value=TRUE, B=1000)
+```
+
+# Exercise 4
+
+## (i)
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+cont_table = matrix(c(17,298,230,428),nrow= 2,dimnames=list("seatbelt"=c("Y","N"),"head_injury"=c("Y","N")))
+cont_table
+```
+
+## (ii)
+
+Without running any tests we can see following:
+The rate of having head injuries while wearing sealbelt (0.07) is much lower than while not wearing seatbelt (0.41).
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+17/247
+298/726
+```
+
+### (iii)
+
+The expected counts for the contingency table are as follows:
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+chisq.test(cont_table)$expected
+```
+
+### (iv)
+
+#### Standard procedures
+
+We can reject the null hypothesis, therefore there is a significant effect of wearing a seatbelt in order to prevent head injuries.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+chisq.test(cont_table)
+```
+
+#### Resampling procedures
+
+Just as the standard procedure explains, we can conclude that wearing a seatbelt does indeed prevent head injuries.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+chisq.test(cont_table, simulate.p.value=TRUE, B=10000)
+```
+
+# 
+
+
