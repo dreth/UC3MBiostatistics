@@ -83,15 +83,70 @@ median(survival_times)
 
 ## Exercise 2
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Given the following density function:
 
-```
+$$f(y) = (\lambda_0 + \lambda_1 y) e^{-\lambda_0 y - \frac{1}{2} \lambda_1 y^2}$$
+
+We obtain the survival function as follows:
+
+$$\begin{split} S(t) = P(T > t) & = \int_{t}^{\infty} (\lambda_0 + \lambda_1 y) e^{-\lambda_0 y - \frac{1}{2} \lambda_1 y^2} dy \\
+& = \lim_{b\to\infty} [- e^{\frac{\lambda_1 b^2}{2} - \lambda_0 b}] + e^{\frac{-\lambda_1 t^2}{2}- \lambda_0 t} \\
+& = 0 + e^{\frac{-\lambda_1 t^2}{2}- \lambda_0 t} \\
+S(t) & = e^{\frac{-\lambda_1 t^2}{2}- \lambda_0 t}, \text{ } \lambda_1 \in \mathbb{R}, \lambda_0 > 0 \end{split}$$
+
+We obtain the hazard function as follows:
+
+$$h(t) = \frac{f(t)}{S(t)} = \frac{(\lambda_0 + \lambda_1 t) e^{-\lambda_0 t - \frac{1}{2} \lambda_1 t^2}}{e^{-\lambda_0 t - \frac{1}{2} \lambda_1 t^2}} = \lambda_0 + \lambda_1 t$$
+
+$$h(t) = \lambda_0 + \lambda_1 t$$
+
+And the cumulative hazard function:
+
+$$H(t) = -log(S(t)) = \frac{\lambda_1 t^2}{2} + \lambda_0 t$$
 
 ## Exercise 3
 
-### KM estimator of the survival function
+### KM estimator implementation of the survival function
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
+km_est <- function(dataset, events) {
+    # calculate survival probabilities
+    n_c <- length(dataset[,1])
+    survival <- c(1)
+    j = 0
+    for (i in 1:length(dataset[,1])) {
+        if (events[i] == 1) {
+            j = j+1
+            prob <- (1-(1/n_c))*survival[j]
+            survival <- c(survival, prob)
+        }    
+        n_c <- n_c - 1    
+    }
+    return(survival)
+}
+```
 
+### Utilizing the function to obtain the survival function for the leukaemia dataset
+
+The survival probabilities are as follows, and these change over time at the times displayed on the *time* column of this table:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+df <- aml[aml$x == 'Maintained',]
+events <- df$status
+survival <- km_est(dataset=df, events=events)
+event_times <- df[df$status == 1,'time']
+```
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+# plotting the probs
+j = 1
+probs <- c()
+for (i in 1:max(df$time)) {
+    if (i %in% event_times) {
+        j = j+1
+    } 
+    probs <- c(probs, survival[j])
+}
+probs <- data.frame(time=1:max(df$time), survival=probs)
+ggplot(data=probs, aes(x=time, y=survival)) + geom_line()
 ```
 
 ## Exercise 4
@@ -112,8 +167,3 @@ median(survival_times)
 
 ```
 
-## Exercise 7
-
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-
-```
