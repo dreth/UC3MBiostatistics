@@ -16,11 +16,104 @@ options(JULIA_HOME = '/home/dreth/julia/bin')
 ```
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
-library(coin)
-library(vcd)
-library(dplyr)
-library(mosaic)
-library(qvalue)
-library(broman)
+library(survival)
+library(ggplot2)
 ```
 
+## Exercise 1
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+range <- seq(1,10, length.out=100)
+hazard <- sapply(range, function(t) {ifelse(t > 5, 0.4, 0.07)})
+cumulative_hazard <- sapply(hazard, function(t) {ifelse(t == 0.4, 0.47, 0.07)})
+survival <- exp(-1* cumulative_hazard)
+df <- data.frame(time=range, hazard=hazard, cumulative_hazard=cumulative_hazard, survival=survival)
+```
+
+### Hazard plot
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data=df, aes(x=time, y=hazard)) + geom_line() + ggtitle('Hazard function')
+```
+
+### Survival plot
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(data=df, aes(x=time, y=survival)) + geom_line() + ggtitle('Survival function')
+```
+
+### Survival times simulation
+
+\small
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# number of trials
+trials <- 1000
+time_length <- 1000
+survival_prob <- c(1, rep(0.9323938, 5), rep(0.6250023, time_length-6))
+
+# t is in seconds
+survival_times <- rep(0,trials)
+for (i in 1:trials) {
+    time = 1
+    while (time < time_length) {
+        if (runif(1,0,1) > survival_prob[time]) {
+            break
+        } else {
+            time = time + 1
+        }
+    }
+    survival_times[i] <- time
+}
+```
+
+\normalsize
+
+### Histogram for survival times
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+hist(survival_times)
+```
+
+### Median survival time
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+median(survival_times)
+```
+
+## Exercise 2
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```
+
+## Exercise 3
+
+### KM estimator of the survival function
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```
+
+## Exercise 4
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```
+
+## Exercise 5
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```
+
+## Exercise 6
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```
+
+## Exercise 7
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```
