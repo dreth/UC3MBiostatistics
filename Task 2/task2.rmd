@@ -188,14 +188,10 @@ plot(fit,lty=1:2,col=1:2,xlab="months",ylab="Survival")
 legend(c(75,150),c(0.8,1),legend=c("With personal","Without personal"),lty=1:2,col=1:2)
 ```
 
-### Logrank test
+### Low-rank test
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 survdiff(Surv(months,censor)~personal,data=henning)
-```
-
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-logrank_test(Surv(months,censor)~factor(personal), data=henning, distribution="exact")
 ```
 
 ### Survival function: with crimes against property
@@ -214,11 +210,56 @@ fit_property2 <- survfit(Surv(henning2$months, henning2$censor)~1)
 plot(fit_property2, xlab="Months", ylab="Survival")
 ```
 
+### Comparing both curves
+
+We can see that the curve for nonpersonal crimes decays faster after the 15th month.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# plot both curves
+fit=survfit(Surv(months,censor)~property,data=henning)
+plot(fit,lty=1:2,col=1:2,xlab="months",ylab="Survival")
+legend(c(75,150),c(0.8,1),legend=c("With property","Without property"),lty=1:2,col=1:2)
+```
+
+### Low-rank test
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+survdiff(Surv(months,censor)~property,data=henning)
+```
+
 ### Fitting a Cox regression
 
+Converting personal and property to leveled factors with labels yes/no.
+
+\footnotesize
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+henning$personal=factor(henning$personal,levels=c("0","1"),labels=c("no","yes"))
+henning$property=factor(henning$property,levels=c("0","1"),labels=c("no","yes"))
+henning
+```
+
+\normalsize
+
+Running the cox regression fit.
+
+\footnotesize
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+fit.all = coxph(Surv(months,censor) ~ cage + personal + property , henning)
+summary(fit.all)
+```
+
+\normalsize
+
+According to the p-value on our Wald test, we can see that 
+
+The dummy variables personal and property are not significant, given that they have a large p-val. The variable cage, which is centered age (in years) at time of release is significant, and positive, which means that it increases the probability of survival as it increases.
 
 ## Exercise 5
 
+Given a hazard function h(t) = c, where c > 0, derive the survival and the density function.
+Calculate the median failure time for c = 5.
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 
 ```
