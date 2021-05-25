@@ -18,6 +18,7 @@ options(JULIA_HOME = '/home/dreth/julia/bin')
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 library(survival)
 library(ggplot2)
+library(coin)
 ```
 
 ## Exercise 1
@@ -151,9 +152,70 @@ ggplot(data=probs, aes(x=time, y=survival)) + geom_line()
 
 ## Exercise 4
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+### KM estimate of the survival function
 
+We can see the estimate as follows:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+henning <- read.table('./Henning.txt', header=TRUE)
+fit <- survfit(Surv(henning$months, henning$censor)~1)
+plot(fit, xlab="Months", ylab="Survival")
 ```
+
+### Survival function: with crimes against persons
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+henning2 <- henning[henning$personal==1,]
+fit_persons1 <- survfit(Surv(henning2$months, henning2$censor)~1)
+plot(fit_persons1, xlab="Months", ylab="Survival")
+```
+
+### Survival function: without crimes against persons
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+henning2 <- henning[henning$personal==0,]
+fit_persons2 <- survfit(Surv(henning2$months, henning2$censor)~1)
+plot(fit_persons2, xlab="Months", ylab="Survival")
+```
+
+### Comparing both curves
+
+We can see that the curve for nonpersonal crimes decays faster after the 15th month.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# plot both curves
+fit=survfit(Surv(months,censor)~personal,data=henning)
+plot(fit,lty=1:2,col=1:2,xlab="months",ylab="Survival")
+legend(c(75,150),c(0.8,1),legend=c("With personal","Without personal"),lty=1:2,col=1:2)
+```
+
+### Logrank test
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+survdiff(Surv(months,censor)~personal,data=henning)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+logrank_test(Surv(months,censor)~factor(personal), data=henning, distribution="exact")
+```
+
+### Survival function: with crimes against property
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+henning2 <- henning[henning$property==1,]
+fit_property1 <- survfit(Surv(henning2$months, henning2$censor)~1)
+plot(fit_property1, xlab="Months", ylab="Survival")
+```
+
+### Survival function: with crimes against property
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+henning2 <- henning[henning$property==0,]
+fit_property2 <- survfit(Surv(henning2$months, henning2$censor)~1)
+plot(fit_property2, xlab="Months", ylab="Survival")
+```
+
+### Fitting a Cox regression
+
 
 ## Exercise 5
 
