@@ -1,7 +1,7 @@
 ---
 title: 'Biostatistics Task 2'
 author: 'Danyu Zhang & Daniel Alonso'
-date: 'May 21st, 2021'
+date: 'May 28th, 2021'
 output: 'pdf_document'
 ---
 
@@ -236,7 +236,7 @@ Converting personal and property to leveled factors with labels yes/no.
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 henning$personal=factor(henning$personal,levels=c("0","1"),labels=c("no","yes"))
 henning$property=factor(henning$property,levels=c("0","1"),labels=c("no","yes"))
-henning
+head(henning)
 ```
 
 \normalsize
@@ -258,15 +258,64 @@ The dummy variables personal and property are not significant, given that they h
 
 ## Exercise 5
 
-Given a hazard function h(t) = c, where c > 0, derive the survival and the density function.
-Calculate the median failure time for c = 5.
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Given a hazard function $h(t) = c$, where $c > 0$:
 
+We obtain the cumulative hazard function $H(t)$:
+
+$$\begin{split} H(t) & = \int_0^{t} h(u) du \\
+& = c \int_0^{t} du \\
+& = ct \end{split}$$
+
+With this, we derive the survival function $S(t)$:
+
+$$\begin{split} H(t) & = ct \\ H(t) & = - log(S(t)) \\ ct & = -log(S(t)) \\ S(t) & = e^{-ct} \end{split}$$
+
+And then we obtain the density function $f(t)$:
+
+$$\begin{split} h(t) & = \frac{f(t)}{S(t)} \\
+c & = \frac{f(t)}{e^{-ct}} \\
+f(t) & = c e^{-ct} \end{split}$$
+
+### Calculating mean failure time with $c = 5$
+
+We note the functions with $c = 5$ are:
+
+$$\begin{split} h(t) & = 5 \\ H(t) & = 5t \\ S(t) & = e^{-5t} \\ f(t) & = 5 e^{-5t} \end{split}$$ 
+ 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# number of trials
+trials <- 100000
+time_length <- 1000
+survival_prob <- sapply(1:time_length, function(t) {exp(-5*t)})
+
+# t is in seconds
+survival_times <- rep(0,trials)
+for (i in 1:trials) {
+    time = 1
+    while (time < time_length) {
+        if (runif(1,0,1) > survival_prob[time]) {
+            break
+        } else {
+            time = time + 1
+        }
+    }
+    survival_times[i] <- time
+}
+```
+
+The mean failure time, according to 100,000 simulations with a length of time of 1000, is as follows:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+mean(survival_times)
 ```
 
 ## Exercise 6
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+First we read the data:
 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# reading the data
+lungcancer = read.table(file="http://www.mayo.edu/research/documents/lungdat/DOC-10027697", sep="",header=F, col.names=c("inst", "time", "status", "age", "sex", "ECOG","Karnofsky.physician", "Karnofsky.patient", "calories", "weight.loss"))
+head(lungcancer)
 ```
 

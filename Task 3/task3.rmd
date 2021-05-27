@@ -1,0 +1,22 @@
+---
+title: 'Biostatistics Task 3'
+author: 'Danyu Zhang & Daniel Alonso'
+date: 'May 28th, 2021'
+output: 'pdf_document'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+collapse = TRUE,
+comment = '#>',
+fig.path = './figures/'
+)
+knitr::knit_engines$set(julia = JuliaCall::eng_juliacall)
+options(JULIA_HOME = '/home/dreth/julia/bin')
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+library(survival)
+library(ggplot2)
+library(coin)
+```
