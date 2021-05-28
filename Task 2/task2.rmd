@@ -16,31 +16,40 @@ options(JULIA_HOME = '/home/dreth/julia/bin')
 ```
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
-library(survival)
 library(ggplot2)
+library(survival)
+library(ggfortify)
 library(coin)
+library(survminer)
 ```
 
 ## Exercise 1
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-range <- seq(1,10, length.out=100)
+range <- seq(1,10, length.out=1000)
 hazard <- sapply(range, function(t) {ifelse(t > 5, 0.4, 0.07)})
-cumulative_hazard <- sapply(hazard, function(t) {ifelse(t == 0.4, 0.47, 0.07)})
-survival <- exp(-1* cumulative_hazard)
+theta <- sapply(hazard, function(h) {1/h})
+cumulative_hazard <- range/theta
+survival <- (1/theta)*exp(-1*cumulative_hazard)
 df <- data.frame(time=range, hazard=hazard, cumulative_hazard=cumulative_hazard, survival=survival)
 ```
 
-### Hazard plot
+### Hazard function plot
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-ggplot(data=df, aes(x=time, y=hazard)) + geom_line() + ggtitle('Hazard function')
+We have a piecewise hazard function as follows:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
+ggplot(data=df, aes(x=time, y=hazard)) + geom_point() + ggtitle('Hazard function')
 ```
 
 ### Survival plot
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-ggplot(data=df, aes(x=time, y=survival)) + geom_line() + ggtitle('Survival function')
+Given that the survival function must be a smooth function, we obtain a survival function 
+
+We obtain a piecewise survival function whose first chunk corresponds 
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
+ggplot(data=df, aes(x=time, y=survival)) + geom_point() + ggtitle('Survival function')
 ```
 
 ### Survival times simulation
@@ -49,34 +58,22 @@ ggplot(data=df, aes(x=time, y=survival)) + geom_line() + ggtitle('Survival funct
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 # number of trials
-trials <- 1000
-time_length <- 1000
-survival_prob <- c(1, rep(0.9323938, 5), rep(0.6250023, time_length-6))
-
-# t is in seconds
-survival_times <- rep(0,trials)
-for (i in 1:trials) {
-    time = 1
-    while (time < time_length) {
-        if (runif(1,0,1) > survival_prob[time]) {
-            break
-        } else {
-            time = time + 1
-        }
-    }
-    survival_times[i] <- time
-}
+survival_times <- sapply(theta, function(lambda) {rexp(1,rate=1/lambda)})
 ```
 
 \normalsize
 
 ### Histogram for survival times
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+We plot a histogram for the survival times
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 hist(survival_times)
 ```
 
 ### Median survival time
+
+As we can see, sampling from the distribution results in the following median survival time:
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 median(survival_times)
@@ -108,7 +105,36 @@ $$H(t) = -log(S(t)) = \frac{\lambda_1 t^2}{2} + \lambda_0 t$$
 ## Exercise 3
 
 ### KM estimator implementation of the survival function
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+Our implementation is as follows:
+
+#### Parameters:
+
+- **dataset**: Dataset to obtain the KM estimation from
+
+- **events**: specific column of the dataset corresponding to the events (deemed *status* for the *aml* dataset)
+
+#### Algorithm:
+
+- Obtain length of the dataset by selecting the first column and utilizing *length* to obtain it
+
+- Create the survival vector with (by definition) survival probability of 1 in the first time instance
+
+- Initilize a counter *j* to keep track of events occurring in the column of the dataset passed as the **events** parameter
+
+- Iterate over the length of the dataset (*1:length(dataset[,1]*)) using *i* as iteration variable
+
+    - During the loop we check if the i-th element of **events** does corespond to an event (1) or not (0)
+
+    - If so, we add one to the counter and calculate the survival probability as a product of the previous survival probability obtained in the previous positive (1) event
+
+        - We append the survival probability to the survival vector
+
+    - 1 is subtracted from the total length of the dataset as one element in the dataset has been traversed. We use this *n_c* variable as a component of our survival probability calculation.
+
+- Return the survival probability vector, the times where the survival probability changes correspond to the original time of events in the original passed on **dataset**.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 km_est <- function(dataset, events) {
     # calculate survival probabilities
     n_c <- length(dataset[,1])
@@ -126,7 +152,7 @@ km_est <- function(dataset, events) {
 }
 ```
 
-### Utilizing the function to obtain the survival function for the leukaemia dataset
+### Utilizing the function to obtain the survival function for the leukemia dataset
 
 The survival probabilities are as follows, and these change over time at the times displayed on the *time* column of this table:
 
@@ -136,7 +162,7 @@ events <- df$status
 survival <- km_est(dataset=df, events=events)
 event_times <- df[df$status == 1,'time']
 ```
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 # plotting the probs
 j = 1
 probs <- c()
@@ -156,39 +182,48 @@ ggplot(data=probs, aes(x=time, y=survival)) + geom_line()
 
 We can see the estimate as follows:
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 henning <- read.table('./Henning.txt', header=TRUE)
+henning$censor = ifelse(henning$censor == 1,0,1)
+henning$personal <- as.factor(henning$personal)
+henning$property <- as.factor (henning$property)
 fit <- survfit(Surv(henning$months, henning$censor)~1)
-plot(fit, xlab="Months", ylab="Survival")
+autoplot(fit)
 ```
+
+In order to achieve this fit, we have modified the dataset as to convert the columns *personal* and *property* to factors, and then switch the 0s for 1s and vice versa in the *censor* column, given that these are reversed.
 
 ### Survival function: with crimes against persons
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 henning2 <- henning[henning$personal==1,]
 fit_persons1 <- survfit(Surv(henning2$months, henning2$censor)~1)
-plot(fit_persons1, xlab="Months", ylab="Survival")
+autoplot(fit_persons1)
 ```
 
 ### Survival function: without crimes against persons
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 henning2 <- henning[henning$personal==0,]
 fit_persons2 <- survfit(Surv(henning2$months, henning2$censor)~1)
-plot(fit_persons2, xlab="Months", ylab="Survival")
+autoplot(fit_persons2)
 ```
 
 ### Comparing both curves
 
-We can see that the curve for nonpersonal crimes decays faster after the 15th month.
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+We can see that the curve for nonpersonal crimes decays faster overall, as opposed to the personal crimes.
+
+&nbsp;
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 # plot both curves
 fit=survfit(Surv(months,censor)~personal,data=henning)
-plot(fit,lty=1:2,col=1:2,xlab="months",ylab="Survival")
-legend(c(75,150),c(0.8,1),legend=c("With personal","Without personal"),lty=1:2,col=1:2)
+autoplot(fit)
 ```
 
 ### Low-rank test
+
+According to the low-rank test. Where our null hypothesis is that both groups are the same. We obtain a p-val of ~0.02 which is <0.05 (setting our confidence level at 95%), therefore we reject the null hypothesis. Therefore there are differences among groups.
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 survdiff(Surv(months,censor)~personal,data=henning)
@@ -196,29 +231,28 @@ survdiff(Surv(months,censor)~personal,data=henning)
 
 ### Survival function: with crimes against property
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 henning2 <- henning[henning$property==1,]
 fit_property1 <- survfit(Surv(henning2$months, henning2$censor)~1)
-plot(fit_property1, xlab="Months", ylab="Survival")
+autoplot(fit_property1)
 ```
 
 ### Survival function: with crimes against property
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.width=5}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=5}
 henning2 <- henning[henning$property==0,]
 fit_property2 <- survfit(Surv(henning2$months, henning2$censor)~1)
-plot(fit_property2, xlab="Months", ylab="Survival")
+autoplot(fit_property2)
 ```
 
 ### Comparing both curves
 
-We can see that the curve for nonpersonal crimes decays faster after the 15th month.
+We can see that the curve for non-property related crimes overall decays significantly faster than the opposite one.
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 # plot both curves
 fit=survfit(Surv(months,censor)~property,data=henning)
-plot(fit,lty=1:2,col=1:2,xlab="months",ylab="Survival")
-legend(c(75,150),c(0.8,1),legend=c("With property","Without property"),lty=1:2,col=1:2)
+autoplot(fit)
 ```
 
 ### Low-rank test
@@ -227,13 +261,15 @@ legend(c(75,150),c(0.8,1),legend=c("With property","Without property"),lty=1:2,c
 survdiff(Surv(months,censor)~property,data=henning)
 ```
 
+As before, we must reject the null hypothesis. Therefore we can say there is a significant statistical difference among both groups.
+
 ### Fitting a Cox regression
 
 Converting personal and property to leveled factors with labels yes/no.
 
 \footnotesize
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 henning$personal=factor(henning$personal,levels=c("0","1"),labels=c("no","yes"))
 henning$property=factor(henning$property,levels=c("0","1"),labels=c("no","yes"))
 head(henning)
@@ -245,16 +281,26 @@ Running the cox regression fit.
 
 \footnotesize
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 fit.all = coxph(Surv(months,censor) ~ cage + personal + property , henning)
 summary(fit.all)
 ```
 
 \normalsize
 
-According to the p-value on our Wald test, we can see that 
+According to the p-value on our Wald test, we can see that all three varaibles are significant. With cage holding the largest significance by a lot. 
 
-The dummy variables personal and property are not significant, given that they have a large p-val. The variable cage, which is centered age (in years) at time of release is significant, and positive, which means that it increases the probability of survival as it increases.
+We can notice that for individuals which committed personal and property crimes, there is a positive increase in hazard, with property crimes yielding the largest increase in hazard.
+
+As for cage, there is a small decrease in hazard given a higher value of *cage*. Hazard is associated with reincidence in crime.
+
+This can be visualized in the *ggforest* plot from the *survminer* library.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=6}
+ggforest(fit.all, data=henning)
+```
+
+We can see that while personal crimes increase the probability of reincidence significantly, property crimes increase it to even a larger extent.
 
 ## Exercise 5
 
@@ -276,38 +322,37 @@ $$\begin{split} h(t) & = \frac{f(t)}{S(t)} \\
 c & = \frac{f(t)}{e^{-ct}} \\
 f(t) & = c e^{-ct} \end{split}$$
 
-### Calculating mean failure time with $c = 5$
+### Calculating median failure time with $c = 5$
 
 We note the functions with $c = 5$ are:
 
 $$\begin{split} h(t) & = 5 \\ H(t) & = 5t \\ S(t) & = e^{-5t} \\ f(t) & = 5 e^{-5t} \end{split}$$ 
- 
+
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 # number of trials
-trials <- 100000
-time_length <- 1000
-survival_prob <- sapply(1:time_length, function(t) {exp(-5*t)})
-
-# t is in seconds
-survival_times <- rep(0,trials)
-for (i in 1:trials) {
-    time = 1
-    while (time < time_length) {
-        if (runif(1,0,1) > survival_prob[time]) {
-            break
-        } else {
-            time = time + 1
-        }
-    }
-    survival_times[i] <- time
-}
+len <- 1e5
+range <- seq(1,100,length.out=len)
+theta <- sapply(rep(5, len), function(h) {1/h})
+cumulative_hazard <- theta*range
+survival <- (1/theta) * exp(- cumulative_hazard)
+df <- data.frame(time=range, survival=survival)
+ggplot(df, aes(x=time, y=survival)) + geom_line() + ggtitle('Survival function')
 ```
 
-The mean failure time, according to 100,000 simulations with a length of time of 1000, is as follows:
+The median failure time, according to 10,000 simulations, with a max length of time of 100, is as follows:
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-mean(survival_times)
+sim <- sapply(theta, function(t) {rexp(1,rate=1/t)})
+median(sim)
 ```
+
+Which we can visualize in a histogram:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+hist(sim)
+```
+
+Therefore failure times are most commonly below 0.2 (~63% of the data) and almost always below 0.6 (~95% of the data).
 
 ## Exercise 6
 
@@ -319,3 +364,8 @@ lungcancer = read.table(file="http://www.mayo.edu/research/documents/lungdat/DOC
 head(lungcancer)
 ```
 
+We must remove missing value rows:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+```

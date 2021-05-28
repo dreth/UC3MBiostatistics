@@ -18,5 +18,51 @@ options(JULIA_HOME = '/home/dreth/julia/bin')
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 library(survival)
 library(ggplot2)
-library(coin)
+library(nlme)
+library(SASmixed)
 ```
+
+# Exercise 1
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+data(PBIB)
+pbib <- PBIB
+```
+
+## Fitting a model with random effects
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+lme(response~Treatment, random=~Treatment|Block, data=pbib)
+```
+
+
+# Exercise 2
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+data(Oxide)
+oxide <- Oxide
+```
+
+
+# Exercise 3
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+data(Cultivation)
+cultivation <- Cultivation
+```
+
+
+# Exercise 4
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+maths <- read.table('./maths.txt', header=TRUE)
+```
+
+
+# Exercise 5
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+eating <- read.table('./eating.txt', header=TRUE)
+```
+
+
