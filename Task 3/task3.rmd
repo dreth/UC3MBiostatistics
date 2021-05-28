@@ -20,6 +20,7 @@ library(survival)
 library(ggplot2)
 library(nlme)
 library(SASmixed)
+library(MuMIn)
 ```
 
 # Exercise 1
@@ -27,42 +28,140 @@ library(SASmixed)
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 data(PBIB)
 pbib <- PBIB
+pbib$Treatment <- as.factor(pbib$Treatment)
+pbib$Block <- as.factor(pbib$Block)
 ```
 
 ## Fitting a model with random effects
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-lme(response~Treatment, random=~Treatment|Block, data=pbib)
+We fit the model with random effects as follows:
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+model <- lme(response~Treatment, random=list(~1|Block), data=pbib)
 ```
 
+\normalsize
+
+## Is the type of fertilizer significant?
+
+According to the model summary, no p-value is below our 0.05 significance level, therefore the treatment (type of fertilizer) cannot be considered significant
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+summary(model)
+```
+
+\normalsize
+
+## What is the percentage of variability explained by the block effect?
+
+We can see that the percentage of variability explained by the block effect is not very high:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(model)[2] - r.squaredGLMM(model)[1]
+```
+
+## Improving the model
+
+We can make the model a little better by considering more random effects:
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+model <- lme(response~Treatment, random=list(~1|Block, ~1|Treatment), data=pbib)
+```
+
+\normalsize
+
+As this increases the explained variability of the model significantly (both variability explained by fixed and random effects):
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(model)[2]
+```
 
 # Exercise 2
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 data(Oxide)
 oxide <- Oxide
+oxide$Source <- as.factor(oxide$Source)
+oxide$Site <- as.factor(oxide$Site)
+oxide$Lot <- as.factor(oxide$Lot)
+oxide$Wafer <- as.factor(oxide$Wafer)
 ```
 
+
+## Identify random and fixed categorical variables
+
+- **Thickness**: continuous variable, the response
+- **Source**: fixed because the variable only has two levels, random variables usually have a lot of levels
+- **Site**: fixed variable, because it has only 2 levels
+- **Lot**: random variable, because it is categorical and has a lot of levels 
+- **Wafer**: fixed variable, because it has only 2 levels
+
+## Modelling
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+model <- lme(Thickness~Source + Site + Wafer, random=~1|Lot, data=oxide)
+summary(model)
+model <- lme(Thickness~Lot + Site + Wafer, random=~1|Source, data=oxide)
+summary(model)
+```
+
+## Analysis
+
+### Summary of the model
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+summary(model)
+```
+
+\normalsize
 
 # Exercise 3
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 data(Cultivation)
 cultivation <- Cultivation
+cultivation$Block <- as.factor(cultivation$Block)
+cultivation$Cult <- as.factor(cultivation$Cult)
+cultivation$Inoc <- as.factor(cultivation$Inoc)
 ```
+
+## Random effects model fit
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+model <- lme(drywt~Cult + Inoc, random=~1|Block, data=cultivation)
+```
+
 
 
 # Exercise 4
-
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 maths <- read.table('./maths.txt', header=TRUE)
+maths$female <- as.factor(maths$female)
+maths$manual <- as.factor(maths$manual)
+maths$school <- as.factor(maths$school)
 ```
 
+First we add the *math.8* and *math.11* average per school to the dataset:
 
-# Exercise 5
+\footnotesize
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-eating <- read.table('./eating.txt', header=TRUE)
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+maths$mean8_per_school <- sapply(maths$school, function(s) {mean(maths[maths$school == s,'math.8'])})
 ```
 
+\normalsize
+
+And then we calculate the difference between the students' *math.8* score and their respective school mean:
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+maths$math8_diff <- maths$math.8 - maths$mean8_per_school
+```
 
