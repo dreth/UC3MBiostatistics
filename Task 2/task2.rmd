@@ -20,6 +20,7 @@ library(ggplot2)
 library(survival)
 library(ggfortify)
 library(coin)
+library(MASS)
 library(survminer)
 ```
 
@@ -356,16 +357,86 @@ Therefore failure times are most commonly below 0.2 (~63% of the data) and almos
 
 ## Exercise 6
 
-First we read the data:
+First we read the data and remove missing values:
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 # reading the data
 lungcancer = read.table(file="http://www.mayo.edu/research/documents/lungdat/DOC-10027697", sep="",header=F, col.names=c("inst", "time", "status", "age", "sex", "ECOG","Karnofsky.physician", "Karnofsky.patient", "calories", "weight.loss"))
-head(lungcancer)
+lungcancer[lungcancer=='.'] <- NA
+lungcancer <- lungcancer[complete.cases(lungcancer), ]
 ```
 
-We must remove missing value rows:
+\normalsize
+
+Then we convert the corresponding variables into factors/numeric:
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+factors <- c('status','sex','inst')
+nums <- c('weight.loss','calories','Karnofsky.physician','Karnofsky.patient','ECOG')
+for (name in factors) {lungcancer[,name] <- as.factor(lungcancer[,name])}
+for (name in nums) {lungcancer[,name] <- as.numeric(lungcancer[,name])}
+```
+
+\normalsize
+
+## Fitting a Cox PH model with all covariates
+
+We fit the model and check its summary:
+
+\tiny
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-
+fit <- coxph(Surv(time)~., data=lungcancer)
+summary(fit)
 ```
+
+\normalsize
+
+## Wald test and LRT test for Karnofsky.patient and Karnofsky.physician
+
+According the LRT and Wald test for this model, excluding vs including the variables shows that it is not statistically correct to simply remove these two variables. We cannot, with sufficient authority (and a confidence level of 95%), reject the null hypothesis. Therefore these two variables should remain in the model.
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+fit_zonder <- coxph(Surv(time)~ . - Karnofsky.physician - Karnofsky.patient, data=lungcancer)
+summary(fit_zonder)
+```
+
+\normalsize
+
+## Finding the best Cox model
+
+I will find the best model using stepBIC, so using the Bayesian Information Criterion in order to sequetially tune the model.
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+lc_n <- dim(lungcancer)[1]
+stepAIC(fit, k=log(lc_n))
+```
+
+\normalsize
+
+The best model has a BIC of 1382.01.
+
+The final model has the following formula: *Surv(time) ~ ECOG*
+
+## Interpretation in terms of hazard ratios
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+summary(coxph(Surv(time)~ECOG, data=lungcancer))
+```
+
+\normalsize
+
+As we see in the summary, given that we're only left with the ECOG variable. We can see that the coefficient is 1.3076, therefore, the higher the ECOG score the higher the hazard, to a singificant extent, where basically 1 unit increase in ECOG score represents a ~31% increase in hazard.
+
+And given the confidence intervals, the hazard ratio can be as low as 1.045 and as high as 1.636
+
