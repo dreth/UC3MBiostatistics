@@ -15,12 +15,15 @@ knitr::knit_engines$set(julia = JuliaCall::eng_juliacall)
 options(JULIA_HOME = '/home/dreth/julia/bin')
 ```
 
-```{r, echo=TRUE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(survival)
 library(ggplot2)
 library(nlme)
 library(SASmixed)
+library(lme4)
+library(lattice)
 library(MuMIn)
+library(gridExtra)
 ```
 
 # Exercise 1
@@ -96,24 +99,43 @@ oxide$Wafer <- as.factor(oxide$Wafer)
 
 ## Identify random and fixed categorical variables
 
-- **Thickness**: continuous variable, the response
-- **Source**: fixed because the variable only has two levels, random variables usually have a lot of levels
-- **Site**: fixed variable, because it has only 2 levels
-- **Lot**: random variable, because it is categorical and has a lot of levels 
-- **Wafer**: fixed variable, because it has only 2 levels
+- **Thickness**: It's a continuous variable. For the purposes of this experiment, we will use it as the response variable.
+
+- **Source**: We should consider it as a fixed effect. It might not be as advisable to use a variable with such little levels as a random effect.
+
+- **Site**: As before, given the low amount of levels, it's also not advisable to use as a random effect. However, less than so for Source, it is less interesting for the experiment to see the difference between sites.
+
+- **Lot**: We will treat this variable as a random effect. We suspect this could definitely represent a large portion of the variability. It also is categorical and has a lot of levels, therefore it's appropriate to consider it as such.
+
+- **Wafer**: We treat it as a fixed effect, treating it as a random effect yields a programmatic error.
 
 ## Modelling
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-model <- lme(Thickness~Source + Site + Wafer, random=~1|Lot, data=oxide)
-summary(model)
-model <- lme(Thickness~Lot + Site + Wafer, random=~1|Source, data=oxide)
-summary(model)
+We run the model using the *lmer* function, using the formula:
+
+**Thickness ~ Source + Site + Wafer**
+
+And considering the **~1|Lot** random effect.
+
+And we get the model as follows:
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+model <- lmer(Thickness~Source + Site + Wafer + (1|Lot), data=oxide)
 ```
+
+\normalsize
 
 ## Analysis
 
-### Summary of the model
+One of our model assumptions is normality, as we can see, the lot random effect seems to follow a normal distribution.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+qqmath(ranef(model,condVar=TRUE))$Lot
+```
+
+Looking at the model summary:
 
 \tiny
 
@@ -122,6 +144,20 @@ summary(model)
 ```
 
 \normalsize
+
+We can notice a few things. First of all, the explained variance by the Lot random effect is significant, at ~128.87, therefore we know that Lot is solid in the model as a random effect. 
+
+Looking at boxplots showing the differences among groups of each categorical variable, we can also see how this makes sense:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=7}
+p1 <- ggplot(data=oxide, aes(x=Lot,y=Thickness))+geom_boxplot()
+p2 <- ggplot(data=oxide, aes(x=Wafer,y=Thickness))+geom_boxplot()
+p3 <- ggplot(data=oxide, aes(x=Site,y=Thickness))+geom_boxplot()
+p4 <- ggplot(data=oxide, aes(x=Source,y=Thickness))+geom_boxplot()
+grid.arrange(p1,p2,p3,p4)
+```
+
+It's clear that there is significantly more variability when considering the lot, vs the other variables. The rest of the categorical variables don't seem to showcase major differences among groups.
 
 # Exercise 3
 
@@ -133,15 +169,73 @@ cultivation$Cult <- as.factor(cultivation$Cult)
 cultivation$Inoc <- as.factor(cultivation$Inoc)
 ```
 
-## Random effects model fit
+## Modelling
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-model <- lme(drywt~Cult + Inoc, random=~1|Block, data=cultivation)
+In order to check the variance explained by each variable as it is considered as random effect or not, we run the model and obtain the summary for each one of the models.
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+model1 <- lmer(drywt~Block + Cult + (1|Inoc), data=cultivation)
 ```
 
+\normalsize
 
+we find that the variable that most variance explains when ran as a random effect is *Inoc*, this finding, however, can be corroborated by visualizing a few boxplots viewing the data vs the categorical variables:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=7}
+p1 <- ggplot(data=cultivation, aes(x=Block,y=drywt))+geom_boxplot()+coord_flip()
+p2 <- ggplot(data=cultivation, aes(x=Cult,y=drywt))+geom_boxplot()+coord_flip()
+p3 <- ggplot(data=cultivation, aes(x=Inoc,y=drywt))+geom_boxplot()+coord_flip()
+grid.arrange(p1,p2,p3)
+```
+
+We can see that the largest accountability for differences can be given to *Inoc* followed by *Block*.
+
+We could run the model considering these as nested random effects:
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+model2 <- lmer(drywt~Cult + (1|Inoc/Block), data=cultivation)
+```
+
+\normalsize
+
+However, comparing the variability explained by the first vs the second model, we see that the simpler model, where we consider Block as a fixed effect is slightly better:
+
+- Inoc as a sole random effect + block as fixed effect:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(model1)
+```
+
+- Inoc/Block as a nested random effect
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(model2)
+```
+
+As a last resort, perhaps we could consider a model where both *Block* and *Inoc* are considered as random effects, but separately from one another:
+
+\footnotesize
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+model3 <- lmer(drywt~Cult + (1|Inoc) + (1|Block), data=cultivation)
+```
+
+\normalsize
+
+And we can see there's a very minimal improvement of the model:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(model3)
+```
+
+Therefore we would keep this as the final model, although for simplicity, if it were costlier to undergo in terms of materials/control of the environment for the study, there is zero harm in using the model where we only consider *Inoc* as a random effect. As the improvement is so minimal that we could say is nearly negligible.
 
 # Exercise 4
+
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 maths <- read.table('./maths.txt', header=TRUE)
 maths$female <- as.factor(maths$female)
@@ -165,3 +259,134 @@ And then we calculate the difference between the students' *math.8* score and th
 maths$math8_diff <- maths$math.8 - maths$mean8_per_school
 ```
 
+## Fitting one model per school
+
+Fitting the model we obtain the following warning:
+
+\footnotesize
+
+```{r, echo=FALSE, warning=TRUE, message=FALSE}
+model1 <- lmList(math.11 ~ math8_diff + female + manual | school, data = maths)
+```
+
+\normalsize
+
+This tells us that there might be some of these schools where only one level of our chosen categorical variables is represented.
+
+## Plotting each set of coefficients
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.height=8}
+par(mfrow=c(2,2))
+plot(c(NA,unique(maths$mean8_per_school)), coef(model1)[,1], xlab = "Means", ylab = "Intercept")
+plot(c(NA,unique(maths$mean8_per_school)), coef(model1)[,2], xlab = "Means", ylab = "Deviation coef.")
+plot(c(NA,unique(maths$mean8_per_school)), coef(model1)[,3], xlab = "Means", ylab = "Female coef.")
+plot(c(NA,unique(maths$mean8_per_school)), coef(model1)[,4], xlab = "Means", ylab = "Manual coef.")
+```
+
+Checking the means vs teh coefficients we can notice a few things. First of all, they're all tightly packed around the same range, and the variability among the values isn't too high, with the exception with the deviation vs means plot.
+
+We can see which coefficients are also more significant than the others, and for example, sex doesn't seem to have a huge effect, at  least visually, along with manual. However, given the scales, our perception might be erroneous. 
+
+In an effort to be precise, it would be reasonable to check the mean of each coefficient:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+for (i in 1:4) {
+    print(mean(na.omit(coef(model1)[,i])))
+}
+```
+
+Surprisingly, sex seems to be the most meaningfully large coefficient, however, this might be due to the fact that it has significant outliers.
+If these were excluded, the result would've been noticeably different.
+
+## Looking at within-school variation for math.11 score
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.height=8}
+dotplot(maths$school ~ maths$math.11, main = "Age 11 Math Scores by School",
+        xlab = "Math Score", ylab = "School", col = maths$school)
+```
+
+Here we notice a few things, first of all, in the grand scheme of things, there seems to not be a ton of differences among schools. Most scores cluster between 30 and 40, but there are clearly some schools with a significantly larger amount of data than others. Therefore there should be some schools which stand out, for example, school 15 only has scores in the upper-middle end of 30-40, but school 1 has a very even distribution of scores, so these should be considered differently, both in terms of results (difference in values) but also in amount of data.
+
+So then we could say yes, the results might vary significantly, but also at the same time, we must be pragmatic about it and keep in mind that the difference in amount of data could be skewing our perspective.
+
+## Fitting a random effects model
+
+Given that we're only interested in the within-school variation of these scores, we should formulate a model where only this is considered, however, prior to doing this, we will check a model including all the categorical variables as fixed effeects, in order to discard those not useful ones.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+model <- lme(math.11~female + manual, random=~1|school, data=maths)
+```
+
+We see something interesting with respect to manual. As for the coefficients go though, we would say that whether the person is female or not would produce a change in 0.386 in the score, either positively (if female), or negatively (if male).
+
+In the case of manual, there seems to be a significant value to its coefficient, where the score is reduced by 2.92 depending whether it's manual or not, if not, then it wouldn't be reduced by 2.92.
+
+According to the p-val, manual should be significant, initially we thought this might be an error, but it seems about right.
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+summary(model)
+```
+
+\normalsize
+
+
+## Keeping manual and adding math8 scores
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+model <- lme(math.11~manual + math.8, random=~1|school, data=maths)
+```
+
+From the model summary we can see that both math.8 scores and manual remain significant, however, the introduction of this variable seems to reduce the significance of manual1, perhaps because the scores might be strongly correlated.
+
+\tiny
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+summary(model)
+```
+
+\normalsize
+
+We can test for this correlation:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+cor(maths$math.11, maths$math.8)
+```
+
+And we see a reasonable correlation, which for the purposes of this model, we can say is strong enough to be significant in a predictive model.
+
+## Testing whether to exclude the random effects or not
+
+We test using the LRT:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+reduced_model <- lm(math.11~manual + math.8, data=maths)
+anova(model, reduced_model)
+```
+
+Given our p-val, which is minimal even for high significance levels (above 99%), we cannot reject that the random effect is not significant, therefore we must keep the full model which includes the random effects.
+
+## Assessing model quality
+
+- R-squared for the model including all categorical variables:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(lme(math.11~female + manual, random=~1|school, data=maths))[2]
+```
+
+- R-squared for the model including math.8, manual and the random effects
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(model)
+```
+
+- R-squared for the model excluding the random effects
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+r.squaredGLMM(reduced_model)
+```
+
+This shows, once again, that our random effects improve the model accuracy, and that math.8 is a significantly more valuable variable at the moment of creating the model.
+
+All this can be confirmed, although the variability explained is still rather poor (<0.6).
