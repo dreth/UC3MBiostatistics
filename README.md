@@ -1,5 +1,6 @@
-# UC3MBiostatistics
-Works done during the biostatistics course at UC3M
+# Biostatistics (UC3M)
+
+Problem sets solved during the biostatistics course taken at UC3M
 
 My partner for these homeworks was [Danyu Zhang](https://github.com/danyuz)
 
